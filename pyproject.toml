@@ -1,0 +1,103 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "home-assistant-ai"
+version = "0.1.0"
+description = "Universal AI-powered Home Assistant Hub"
+authors = [{name = "Даниил Василевский", email = "user@example.com"}]
+license = {text = "MIT"}
+readme = "README.md"
+requires-python = ">=3.9"
+keywords = ["home-automation", "ai", "iot", "raspberry-pi"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Home Automation",
+]
+
+dependencies = [
+    # Core dependencies
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "pydantic>=2.0.0",
+    "aiofiles>=23.0.0",
+    
+    # Database
+    "sqlalchemy>=2.0.0",
+    "aiosqlite>=0.19.0",
+    
+    # Communication protocols
+    "paho-mqtt>=1.6.0",
+    "bleak>=0.21.0",  # Bluetooth LE
+    "aiocoap>=0.4.0",  # CoAP protocol
+    "pyserial>=3.5",
+    
+    # AI and ML
+    "openai>=1.0.0",
+    "langchain>=0.1.0",
+    "transformers>=4.30.0",
+    "torch>=2.0.0",
+    "sentence-transformers>=2.2.0",
+    
+    # Voice processing
+    "speechrecognition>=3.10.0",
+    "pyttsx3>=2.90",
+    "pyaudio>=0.2.11",
+    "openai-whisper>=20231117",
+    "pvporcupine>=3.0.0",
+    "vosk>=0.3.45",
+    "gtts>=2.5.0",
+    "pygame>=2.5.0",
+    "sounddevice>=0.4.6",
+    "numpy>=1.24.0",
+    
+    # Configuration and logging
+    "pyyaml>=6.0.0",
+    "python-dotenv>=1.0.0",
+    "structlog>=23.0.0",
+    
+    # Cryptography for security
+    "cryptography>=41.0.0",
+    "python-jose[cryptography]>=3.3.0",
+]
+
+[project.optional-dependencies]
+zigbee = ["zigpy>=0.59.0", "zigpy-znp>=0.11.0"]
+zwave = ["python-openzwave>=0.4.19"]
+development = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "flake8>=6.0.0",
+    "mypy>=1.5.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/user/home-assistant-ai"
+Repository = "https://github.com/user/home-assistant-ai"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["home_assistant*"]
+
+[tool.black]
+line-length = 88
+target-version = ['py39']
+
+[tool.isort]
+profile = "black"
+line_length = 88
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true

@@ -1,0 +1,116 @@
+# Home Assistant AI - Пример конфигурации
+
+# Основные настройки
+debug: false
+log_level: INFO
+data_dir: ./data
+config_dir: ./config
+
+# База данных
+database:
+  type: sqlite
+  url: sqlite:///./data/home_assistant.db
+  pool_size: 5
+  echo: false
+
+# AI модуль
+ai:
+  # Облачные LLM
+  openai_api_key: null
+  openai_model: gpt-4
+  
+  # Локальные LLM (Ollama)
+  local_llm_enabled: true
+  local_llm_model: llama2:7b
+  local_llm_url: http://localhost:11434
+  
+  # Настройки reasoning
+  max_reasoning_steps: 10
+  temperature: 0.7
+  max_tokens: 2048
+
+# Протоколы связи
+protocols:
+  enabled:
+    - wifi
+    - bluetooth
+    - mqtt
+  
+  # WiFi настройки
+  wifi_scan_interval: 30
+  
+  # Bluetooth настройки
+  bluetooth_scan_interval: 10
+  bluetooth_discovery_timeout: 30
+  
+  # MQTT настройки
+  mqtt_broker: localhost
+  mqtt_port: 1883
+  mqtt_username: null
+  mqtt_password: null
+  mqtt_topic_prefix: homeassistant
+  
+  # Zigbee настройки (опционально)
+  zigbee_device: null  # например: /dev/ttyUSB0
+  zigbee_baudrate: 115200
+  
+  # Z-Wave настройки (опционально)
+  zwave_device: null  # например: /dev/ttyACM0
+
+# Голосовое управление
+voice:
+  enabled: true
+  
+  # Speech-to-Text
+  stt_engine: google  # google, whisper, vosk
+  stt_language: ru-RU
+  
+  # Text-to-Speech
+  tts_engine: pyttsx3  # pyttsx3, google, festival
+  tts_language: ru
+  tts_voice_rate: 200
+  
+  # Слово-активатор
+  wake_word: Hey Assistant
+  wake_word_sensitivity: 0.7
+  
+  # Аудио настройки
+  microphone_index: null
+  sample_rate: 16000
+  channels: 1
+
+# REST API
+api:
+  host: 0.0.0.0
+  port: 8000
+  reload: false
+  
+  # Безопасность
+  secret_key: ""
+  access_token_expire_minutes: 30
+  
+  # CORS
+  cors_origins:
+    - "*"
+  cors_credentials: true
+  cors_methods:
+    - "*"
+  cors_headers:
+    - "*"
+
+# Режим приватности
+privacy:
+  enabled: false
+  
+  # Локальный режим
+  force_local_processing: false
+  disable_cloud_services: false
+  disable_external_apis: false
+  
+  # Шифрование данных
+  encrypt_local_data: true
+  encryption_key: null
+  
+  # Логирование
+  disable_usage_analytics: true
+  anonymize_logs: true

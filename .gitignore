@@ -1,0 +1,107 @@
+# Home Assistant AI - Git ignore файл
+
+# Переменные окружения
+.env
+.env.local
+.env.production
+
+# Данные и логи
+data/
+logs/
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Testing
+.coverage
+.pytest_cache/
+htmlcov/
+.tox/
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.nox/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Databases
+*.db
+*.sqlite3
+
+# Configuration (only examples should be tracked)
+config/config.yaml
+config/config.yml
+
+# Temporary files
+*.tmp
+*.temp
+.tmp/
+
+# Documentation builds
+docs/_build/
+site/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Certificates and keys
+*.pem
+*.key
+*.crt
+*.p12
+
+# Home Assistant specific
+home_assistant.db*
+known_devices.yaml
+secrets.yaml
