@@ -13,7 +13,7 @@ import structlog
 from .config import HomeAssistantConfig
 from .events_simple import EventSystem
 from ..storage.database import DatabaseManager
-from ..communication.hub import CommunicationHub
+from ..communications.hub import CommunicationHub
 from ..ai.reasoning import ReasoningEngine
 from ..api.main import create_app
 
