@@ -12,13 +12,6 @@ import numpy as np
 from dataclasses import dataclass
 from enum import Enum
 
-try:
-    from sklearn.cluster import KMeans
-    from sklearn.preprocessing import StandardScaler
-    SKLEARN_AVAILABLE = True
-except ImportError:
-    SKLEARN_AVAILABLE = False
-
 
 class ScenarioType(Enum):
     TIME_BASED = "time_based"
@@ -74,13 +67,13 @@ class SmartScenariosAI:
             end_date = datetime.now()
             start_date = end_date - timedelta(days=days_back)
             
-            # Получение логов устройств за период
-            device_logs = await self.db_manager.get_device_logs_period(start_date, end_date)
-            
+            # Получение логов устройств за период (симуляция)
             patterns = []
-            for log in device_logs:
-                # Извлечение контекста из времени
-                timestamp = datetime.fromisoformat(log['timestamp'])
+            
+            # Симуляция типичных паттернов пользователя
+            for i in range(60):  # 60 записей за месяц
+                timestamp = start_date + timedelta(days=i % 30, hours=(i % 24))
+                
                 context = {
                     'hour': timestamp.hour,
                     'day_of_week': timestamp.weekday(),
@@ -89,15 +82,29 @@ class SmartScenariosAI:
                     'season': self._get_season(timestamp)
                 }
                 
-                pattern = PatternData(
-                    timestamp=timestamp,
-                    device_id=log['device_id'],
-                    action=log['action'],
-                    room=log.get('room', 'unknown'),
-                    trigger_type=log.get('trigger_type', 'manual'),
-                    context=context
-                )
-                patterns.append(pattern)
+                # Утренние паттерны
+                if 6 <= timestamp.hour <= 8:
+                    pattern = PatternData(
+                        timestamp=timestamp,
+                        device_id='bedroom_lights',
+                        action='turn_on',
+                        room='bedroom',
+                        trigger_type='manual',
+                        context=context
+                    )
+                    patterns.append(pattern)
+                
+                # Вечерние паттерны
+                elif 19 <= timestamp.hour <= 22:
+                    pattern = PatternData(
+                        timestamp=timestamp,
+                        device_id='living_room_lights',
+                        action='turn_on',
+                        room='living_room',
+                        trigger_type='manual',
+                        context=context
+                    )
+                    patterns.append(pattern)
             
             return patterns
             
@@ -225,11 +232,6 @@ class SmartScenariosAI:
         if energy_scenario:
             scenarios.append(energy_scenario)
         
-        # Создание сценария комфорта
-        comfort_scenario = await self._create_comfort_scenario(pattern)
-        if comfort_scenario:
-            scenarios.append(comfort_scenario)
-        
         return scenarios
     
     async def _create_routine_scenario(self, pattern: Dict[str, Any], time_of_day: str) -> Optional[SmartScenario]:
@@ -277,4 +279,312 @@ class SmartScenariosAI:
                 energy_impact=await self._estimate_energy_impact(scenario_actions),
                 comfort_score=await self._estimate_comfort_score(scenario_actions, time_of_day),
                 created_at=datetime.now()
-            )\n            \n        except Exception as e:\n            print(f\"Error creating routine scenario: {e}\")\n            return None\n    \n    async def _create_energy_saving_scenario(self, pattern: Dict[str, Any]) -> Optional[SmartScenario]:\n        \"\"\"Создание энергосберегающего сценария.\"\"\"\n        try:\n            # Анализ устройств, которые часто остаются включенными\n            devices = pattern['devices']\n            actions = pattern['actions']\n            \n            # Создание сценария для автоматического выключения\n            if any('turn_on' in action for action in actions):\n                scenario_actions = []\n                \n                # Добавление действий выключения с задержкой\n                for device in devices:\n                    scenario_actions.append({\n                        \"device_id\": device,\n                        \"action\": \"turn_off\",\n                        \"condition\": \"no_motion_detected\",\n                        \"delay\": 1800,  # 30 минут\n                        \"priority\": 2\n                    })\n                \n                trigger_conditions = [{\n                    \"type\": \"no_activity\",\n                    \"duration\": 30,  # 30 минут\n                    \"rooms\": list(set(pattern.get('rooms', [])))\n                }]\n                \n                scenario_id = f\"energy_saving_{abs(hash(str(pattern)))}\"\n                \n                return SmartScenario(\n                    id=scenario_id,\n                    name=\"Smart Energy Saving\",\n                    description=\"Automatically turn off devices when no activity detected\",\n                    scenario_type=ScenarioType.ENERGY_OPTIMIZATION,\n                    trigger_conditions=trigger_conditions,\n                    actions=scenario_actions,\n                    confidence=0.7,\n                    frequency=pattern['frequency'],\n                    energy_impact=15.0,  # Примерная экономия в процентах\n                    comfort_score=0.8,\n                    created_at=datetime.now()\n                )\n            \n            return None\n            \n        except Exception as e:\n            print(f\"Error creating energy saving scenario: {e}\")\n            return None\n    \n    async def _create_comfort_scenario(self, pattern: Dict[str, Any]) -> Optional[SmartScenario]:\n        \"\"\"Создание сценария комфорта.\"\"\"\n        try:\n            context = pattern['sample_context']\n            time_of_day = context['time_of_day']\n            \n            # Сценарии комфорта в зависимости от времени\n            comfort_actions = []\n            \n            if time_of_day == 'evening':\n                # Вечерний комфорт: приглушенный свет, теплая атмосфера\n                comfort_actions = [\n                    {\n                        \"device_id\": \"living_room_lights\",\n                        \"action\": \"set_brightness\",\n                        \"params\": {\"brightness\": 30},\n                        \"priority\": 1\n                    },\n                    {\n                        \"device_id\": \"thermostat\",\n                        \"action\": \"set_temperature\",\n                        \"params\": {\"temperature\": 22},\n                        \"priority\": 2\n                    }\n                ]\n            elif time_of_day == 'morning':\n                # Утренний комфорт: постепенное увеличение света\n                comfort_actions = [\n                    {\n                        \"device_id\": \"bedroom_lights\",\n                        \"action\": \"gradual_on\",\n                        \"params\": {\"duration\": 300, \"final_brightness\": 80},\n                        \"priority\": 1\n                    }\n                ]\n            \n            if comfort_actions:\n                trigger_conditions = [{\n                    \"type\": \"presence_detected\",\n                    \"location\": pattern.get('rooms', ['living_room'])[0],\n                    \"time_range\": f\"{context['hour']-1}:00-{context['hour']+1}:00\"\n                }]\n                \n                scenario_id = f\"comfort_{time_of_day}_{abs(hash(str(pattern)))}\"\n                \n                return SmartScenario(\n                    id=scenario_id,\n                    name=f\"{time_of_day.capitalize()} Comfort\",\n                    description=f\"Optimize comfort settings for {time_of_day}\",\n                    scenario_type=ScenarioType.COMFORT,\n                    trigger_conditions=trigger_conditions,\n                    actions=comfort_actions,\n                    confidence=0.75,\n                    frequency=pattern['frequency'],\n                    energy_impact=0.0,\n                    comfort_score=0.9,\n                    created_at=datetime.now()\n                )\n            \n            return None\n            \n        except Exception as e:\n            print(f\"Error creating comfort scenario: {e}\")\n            return None\n    \n    def _get_days_from_pattern(self, pattern: Dict[str, Any]) -> List[str]:\n        \"\"\"Определение дней недели для сценария.\"\"\"\n        context = pattern['sample_context']\n        if context['is_weekend']:\n            return ['saturday', 'sunday']\n        else:\n            return ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']\n    \n    async def _suggest_related_actions(self, devices: List[str], time_of_day: str) -> List[Dict[str, Any]]:\n        \"\"\"Предложение связанных действий для улучшения сценария.\"\"\"\n        related_actions = []\n        \n        if time_of_day == 'morning':\n            # Утренние дополнительные действия\n            if 'coffee_maker' not in devices:\n                related_actions.append({\n                    \"device_id\": \"coffee_maker\",\n                    \"action\": \"start_brewing\",\n                    \"delay\": 5,\n                    \"priority\": 3,\n                    \"suggested\": True\n                })\n            \n            if 'thermostat' not in devices:\n                related_actions.append({\n                    \"device_id\": \"thermostat\",\n                    \"action\": \"set_temperature\",\n                    \"params\": {\"temperature\": 21},\n                    \"delay\": 0,\n                    \"priority\": 2,\n                    \"suggested\": True\n                })\n        \n        elif time_of_day == 'evening':\n            # Вечерние дополнительные действия\n            if any('light' in device for device in devices):\n                related_actions.append({\n                    \"device_id\": \"outdoor_lights\",\n                    \"action\": \"turn_on\",\n                    \"delay\": 30,\n                    \"priority\": 3,\n                    \"suggested\": True\n                })\n        \n        return related_actions\n    \n    async def _estimate_energy_impact(self, actions: List[Dict[str, Any]]) -> float:\n        \"\"\"Оценка влияния сценария на энергопотребление.\"\"\"\n        # Простая эвристика для оценки энергетического воздействия\n        impact = 0.0\n        \n        for action in actions:\n            action_type = action.get('action', '')\n            if 'turn_off' in action_type:\n                impact += 5.0  # Экономия\n            elif 'turn_on' in action_type:\n                impact -= 2.0  # Потребление\n            elif 'dim' in action_type or 'brightness' in action_type:\n                impact += 1.0  # Небольшая экономия\n        \n        return impact\n    \n    async def _estimate_comfort_score(self, actions: List[Dict[str, Any]], time_of_day: str) -> float:\n        \"\"\"Оценка влияния сценария на комфорт.\"\"\"\n        score = 0.5  # Базовый уровень\n        \n        # Бонусы за полезные действия\n        action_types = [action.get('action', '') for action in actions]\n        \n        if 'gradual' in ' '.join(action_types):\n            score += 0.2  # Плавные переходы повышают комфорт\n        \n        if time_of_day == 'morning' and any('coffee' in action.get('device_id', '') for action in actions):\n            score += 0.15  # Утренний кофе\n        \n        if len(actions) > 1:\n            score += 0.1  # Комплексные сценарии\n        \n        return min(1.0, score)\n    \n    async def _group_related_scenarios(self, scenarios: List[SmartScenario]) -> List[SmartScenario]:\n        \"\"\"Группировка связанных сценариев для избежания дублирования.\"\"\"\n        if not scenarios:\n            return scenarios\n        \n        # Группировка по времени и типу\n        grouped = {}\n        for scenario in scenarios:\n            key = f\"{scenario.scenario_type.value}_{scenario.trigger_conditions[0].get('value', 'none')}\"\n            if key not in grouped:\n                grouped[key] = []\n            grouped[key].append(scenario)\n        \n        # Выбор лучшего сценария из каждой группы\n        best_scenarios = []\n        for group in grouped.values():\n            if len(group) == 1:\n                best_scenarios.append(group[0])\n            else:\n                # Выбираем сценарий с максимальной уверенностью\n                best = max(group, key=lambda s: s.confidence * s.frequency)\n                best_scenarios.append(best)\n        \n        return best_scenarios\n    \n    async def _optimize_scenarios(self, scenarios: List[SmartScenario]) -> List[SmartScenario]:\n        \"\"\"Оптимизация сценариев для повышения эффективности.\"\"\"\n        optimized = []\n        \n        for scenario in scenarios:\n            # Оптимизация действий\n            optimized_actions = await self._optimize_actions(scenario.actions)\n            \n            # Создание оптимизированного сценария\n            optimized_scenario = SmartScenario(\n                id=scenario.id,\n                name=scenario.name,\n                description=scenario.description,\n                scenario_type=scenario.scenario_type,\n                trigger_conditions=scenario.trigger_conditions,\n                actions=optimized_actions,\n                confidence=scenario.confidence,\n                frequency=scenario.frequency,\n                energy_impact=scenario.energy_impact,\n                comfort_score=scenario.comfort_score,\n                created_at=scenario.created_at\n            )\n            \n            optimized.append(optimized_scenario)\n        \n        return optimized\n    \n    async def _optimize_actions(self, actions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:\n        \"\"\"Оптимизация последовательности действий.\"\"\"\n        if not actions:\n            return actions\n        \n        # Сортировка по приоритету\n        sorted_actions = sorted(actions, key=lambda a: a.get('priority', 5))\n        \n        # Оптимизация задержек\n        optimized = []\n        current_delay = 0\n        \n        for action in sorted_actions:\n            optimized_action = action.copy()\n            optimized_action['delay'] = current_delay\n            optimized.append(optimized_action)\n            \n            # Увеличиваем задержку для следующего действия\n            current_delay += action.get('delay', 2)\n        \n        return optimized\n    \n    async def suggest_scenario_improvements(self, scenario_id: str, usage_stats: Dict[str, Any]) -> List[str]:\n        \"\"\"Предложение улучшений для существующего сценария.\"\"\"\n        suggestions = []\n        \n        success_rate = usage_stats.get('success_rate', 0.0)\n        user_feedback = usage_stats.get('user_feedback', {})\n        \n        if success_rate < 0.7:\n            suggestions.append(\"Consider adjusting trigger conditions - low success rate detected\")\n        \n        if user_feedback.get('too_early', 0) > user_feedback.get('too_late', 0):\n            suggestions.append(\"Scenario might be triggering too early - consider delaying by 15-30 minutes\")\n        elif user_feedback.get('too_late', 0) > user_feedback.get('too_early', 0):\n            suggestions.append(\"Scenario might be triggering too late - consider advancing by 15-30 minutes\")\n        \n        energy_usage = usage_stats.get('energy_usage', 0)\n        if energy_usage > 20:  # Высокое потребление\n            suggestions.append(\"High energy usage detected - consider adding energy-saving actions\")\n        \n        return suggestions\n    \n    async def generate_voice_activated_scenarios(self, voice_commands: List[str]) -> List[SmartScenario]:\n        \"\"\"Создание сценариев на основе голосовых команд.\"\"\"\n        scenarios = []\n        \n        # Анализ частых голосовых команд\n        command_analysis = await self._analyze_voice_commands(voice_commands)\n        \n        for command_pattern in command_analysis:\n            if command_pattern['frequency'] >= 3:\n                scenario = await self._create_voice_scenario(command_pattern)\n                if scenario:\n                    scenarios.append(scenario)\n        \n        return scenarios\n    \n    async def _analyze_voice_commands(self, commands: List[str]) -> List[Dict[str, Any]]:\n        \"\"\"Анализ голосовых команд для поиска паттернов.\"\"\"\n        # Простой анализ частоты команд\n        command_freq = {}\n        for command in commands:\n            normalized = command.lower().strip()\n            command_freq[normalized] = command_freq.get(normalized, 0) + 1\n        \n        # Возвращаем команды с частотой больше 1\n        patterns = [\n            {'command': cmd, 'frequency': freq}\n            for cmd, freq in command_freq.items() if freq > 1\n        ]\n        \n        return sorted(patterns, key=lambda x: x['frequency'], reverse=True)\n    \n    async def _create_voice_scenario(self, command_pattern: Dict[str, Any]) -> Optional[SmartScenario]:\n        \"\"\"Создание сценария на основе голосовой команды.\"\"\"\n        try:\n            command = command_pattern['command']\n            frequency = command_pattern['frequency']\n            \n            # Анализ команды для извлечения действий\n            if 'включи' in command or 'turn on' in command:\n                if 'свет' in command or 'light' in command:\n                    actions = [{\n                        \"device_id\": \"living_room_lights\",\n                        \"action\": \"turn_on\",\n                        \"priority\": 1\n                    }]\n                elif 'музыку' in command or 'music' in command:\n                    actions = [{\n                        \"device_id\": \"spotify\",\n                        \"action\": \"play\",\n                        \"priority\": 1\n                    }]\n                else:\n                    return None\n                \n                scenario_id = f\"voice_command_{abs(hash(command))}\"\n                \n                return SmartScenario(\n                    id=scenario_id,\n                    name=f\"Voice Command: {command.title()}\",\n                    description=f\"Execute frequent voice command: '{command}'\",\n                    scenario_type=ScenarioType.PATTERN_BASED,\n                    trigger_conditions=[{\n                        \"type\": \"voice_command\",\n                        \"phrase\": command,\n                        \"similarity_threshold\": 0.8\n                    }],\n                    actions=actions,\n                    confidence=min(0.9, frequency / 10.0),\n                    frequency=frequency,\n                    energy_impact=0.0,\n                    comfort_score=0.8,\n                    created_at=datetime.now()\n                )\n            \n            return None\n            \n        except Exception as e:\n            print(f\"Error creating voice scenario: {e}\")\n            return None\n
+            )
+            
+        except Exception as e:
+            print(f"Error creating routine scenario: {e}")
+            return None
+    
+    async def _create_energy_saving_scenario(self, pattern: Dict[str, Any]) -> Optional[SmartScenario]:
+        """Создание энергосберегающего сценария."""
+        try:
+            # Анализ устройств, которые часто остаются включенными
+            devices = pattern['devices']
+            actions = pattern['actions']
+            
+            # Создание сценария для автоматического выключения
+            if any('turn_on' in action for action in actions):
+                scenario_actions = []
+                
+                # Добавление действий выключения с задержкой
+                for device in devices:
+                    scenario_actions.append({
+                        "device_id": device,
+                        "action": "turn_off",
+                        "condition": "no_motion_detected",
+                        "delay": 1800,  # 30 минут
+                        "priority": 2
+                    })
+                
+                trigger_conditions = [{
+                    "type": "no_activity",
+                    "duration": 30,  # 30 минут
+                    "rooms": list(set(pattern.get('rooms', [])))
+                }]
+                
+                scenario_id = f"energy_saving_{abs(hash(str(pattern)))}"
+                
+                return SmartScenario(
+                    id=scenario_id,
+                    name="Smart Energy Saving",
+                    description="Automatically turn off devices when no activity detected",
+                    scenario_type=ScenarioType.ENERGY_OPTIMIZATION,
+                    trigger_conditions=trigger_conditions,
+                    actions=scenario_actions,
+                    confidence=0.7,
+                    frequency=pattern['frequency'],
+                    energy_impact=15.0,  # Примерная экономия в процентах
+                    comfort_score=0.8,
+                    created_at=datetime.now()
+                )
+            
+            return None
+            
+        except Exception as e:
+            print(f"Error creating energy saving scenario: {e}")
+            return None
+    
+    def _get_days_from_pattern(self, pattern: Dict[str, Any]) -> List[str]:
+        """Определение дней недели для сценария."""
+        context = pattern['sample_context']
+        if context['is_weekend']:
+            return ['saturday', 'sunday']
+        else:
+            return ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']
+    
+    async def _suggest_related_actions(self, devices: List[str], time_of_day: str) -> List[Dict[str, Any]]:
+        """Предложение связанных действий для улучшения сценария."""
+        related_actions = []
+        
+        if time_of_day == 'morning':
+            # Утренние дополнительные действия
+            if 'coffee_maker' not in devices:
+                related_actions.append({
+                    "device_id": "coffee_maker",
+                    "action": "start_brewing",
+                    "delay": 5,
+                    "priority": 3,
+                    "suggested": True
+                })
+            
+            if 'thermostat' not in devices:
+                related_actions.append({
+                    "device_id": "thermostat",
+                    "action": "set_temperature",
+                    "params": {"temperature": 21},
+                    "delay": 0,
+                    "priority": 2,
+                    "suggested": True
+                })
+        
+        elif time_of_day == 'evening':
+            # Вечерние дополнительные действия
+            if any('light' in device for device in devices):
+                related_actions.append({
+                    "device_id": "outdoor_lights",
+                    "action": "turn_on",
+                    "delay": 30,
+                    "priority": 3,
+                    "suggested": True
+                })
+        
+        return related_actions
+    
+    async def _estimate_energy_impact(self, actions: List[Dict[str, Any]]) -> float:
+        """Оценка влияния сценария на энергопотребление."""
+        # Простая эвристика для оценки энергетического воздействия
+        impact = 0.0
+        
+        for action in actions:
+            action_type = action.get('action', '')
+            if 'turn_off' in action_type:
+                impact += 5.0  # Экономия
+            elif 'turn_on' in action_type:
+                impact -= 2.0  # Потребление
+            elif 'dim' in action_type or 'brightness' in action_type:
+                impact += 1.0  # Небольшая экономия
+        
+        return impact
+    
+    async def _estimate_comfort_score(self, actions: List[Dict[str, Any]], time_of_day: str) -> float:
+        """Оценка влияния сценария на комфорт."""
+        score = 0.5  # Базовый уровень
+        
+        # Бонусы за полезные действия
+        action_types = [action.get('action', '') for action in actions]
+        
+        if 'gradual' in ' '.join(action_types):
+            score += 0.2  # Плавные переходы повышают комфорт
+        
+        if time_of_day == 'morning' and any('coffee' in action.get('device_id', '') for action in actions):
+            score += 0.15  # Утренний кофе
+        
+        if len(actions) > 1:
+            score += 0.1  # Комплексные сценарии
+        
+        return min(1.0, score)
+    
+    async def _group_related_scenarios(self, scenarios: List[SmartScenario]) -> List[SmartScenario]:
+        """Группировка связанных сценариев для избежания дублирования."""
+        if not scenarios:
+            return scenarios
+        
+        # Группировка по времени и типу
+        grouped = {}
+        for scenario in scenarios:
+            key = f"{scenario.scenario_type.value}_{scenario.trigger_conditions[0].get('value', 'none')}"
+            if key not in grouped:
+                grouped[key] = []
+            grouped[key].append(scenario)
+        
+        # Выбор лучшего сценария из каждой группы
+        best_scenarios = []
+        for group in grouped.values():
+            if len(group) == 1:
+                best_scenarios.append(group[0])
+            else:
+                # Выбираем сценарий с максимальной уверенностью
+                best = max(group, key=lambda s: s.confidence * s.frequency)
+                best_scenarios.append(best)
+        
+        return best_scenarios
+    
+    async def _optimize_scenarios(self, scenarios: List[SmartScenario]) -> List[SmartScenario]:
+        """Оптимизация сценариев для повышения эффективности."""
+        optimized = []
+        
+        for scenario in scenarios:
+            # Оптимизация действий
+            optimized_actions = await self._optimize_actions(scenario.actions)
+            
+            # Создание оптимизированного сценария
+            optimized_scenario = SmartScenario(
+                id=scenario.id,
+                name=scenario.name,
+                description=scenario.description,
+                scenario_type=scenario.scenario_type,
+                trigger_conditions=scenario.trigger_conditions,
+                actions=optimized_actions,
+                confidence=scenario.confidence,
+                frequency=scenario.frequency,
+                energy_impact=scenario.energy_impact,
+                comfort_score=scenario.comfort_score,
+                created_at=scenario.created_at
+            )
+            
+            optimized.append(optimized_scenario)
+        
+        return optimized
+    
+    async def _optimize_actions(self, actions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Оптимизация последовательности действий."""
+        if not actions:
+            return actions
+        
+        # Сортировка по приоритету
+        sorted_actions = sorted(actions, key=lambda a: a.get('priority', 5))
+        
+        # Оптимизация задержек
+        optimized = []
+        current_delay = 0
+        
+        for action in sorted_actions:
+            optimized_action = action.copy()
+            optimized_action['delay'] = current_delay
+            optimized.append(optimized_action)
+            
+            # Увеличиваем задержку для следующего действия
+            current_delay += action.get('delay', 2)
+        
+        return optimized
+    
+    async def suggest_scenario_improvements(self, scenario_id: str, usage_stats: Dict[str, Any]) -> List[str]:
+        """Предложение улучшений для существующего сценария."""
+        suggestions = []
+        
+        success_rate = usage_stats.get('success_rate', 0.0)
+        user_feedback = usage_stats.get('user_feedback', {})
+        
+        if success_rate < 0.7:
+            suggestions.append("Consider adjusting trigger conditions - low success rate detected")
+        
+        if user_feedback.get('too_early', 0) > user_feedback.get('too_late', 0):
+            suggestions.append("Scenario might be triggering too early - consider delaying by 15-30 minutes")
+        elif user_feedback.get('too_late', 0) > user_feedback.get('too_early', 0):
+            suggestions.append("Scenario might be triggering too late - consider advancing by 15-30 minutes")
+        
+        energy_usage = usage_stats.get('energy_usage', 0)
+        if energy_usage > 20:  # Высокое потребление
+            suggestions.append("High energy usage detected - consider adding energy-saving actions")
+        
+        return suggestions
+    
+    async def generate_voice_activated_scenarios(self, voice_commands: List[str]) -> List[SmartScenario]:
+        """Создание сценариев на основе голосовых команд."""
+        scenarios = []
+        
+        # Анализ частых голосовых команд
+        command_analysis = await self._analyze_voice_commands(voice_commands)
+        
+        for command_pattern in command_analysis:
+            if command_pattern['frequency'] >= 3:
+                scenario = await self._create_voice_scenario(command_pattern)
+                if scenario:
+                    scenarios.append(scenario)
+        
+        return scenarios
+    
+    async def _analyze_voice_commands(self, commands: List[str]) -> List[Dict[str, Any]]:
+        """Анализ голосовых команд для поиска паттернов."""
+        # Простой анализ частоты команд
+        command_freq = {}
+        for command in commands:
+            normalized = command.lower().strip()
+            command_freq[normalized] = command_freq.get(normalized, 0) + 1
+        
+        # Возвращаем команды с частотой больше 1
+        patterns = [
+            {'command': cmd, 'frequency': freq}
+            for cmd, freq in command_freq.items() if freq > 1
+        ]
+        
+        return sorted(patterns, key=lambda x: x['frequency'], reverse=True)
+    
+    async def _create_voice_scenario(self, command_pattern: Dict[str, Any]) -> Optional[SmartScenario]:
+        """Создание сценария на основе голосовой команды."""
+        try:
+            command = command_pattern['command']
+            frequency = command_pattern['frequency']
+            
+            # Анализ команды для извлечения действий
+            if 'включи' in command or 'turn on' in command:
+                if 'свет' in command or 'light' in command:
+                    actions = [{
+                        "device_id": "living_room_lights",
+                        "action": "turn_on",
+                        "priority": 1
+                    }]
+                elif 'музыку' in command or 'music' in command:
+                    actions = [{
+                        "device_id": "spotify",
+                        "action": "play",
+                        "priority": 1
+                    }]
+                else:
+                    return None
+                
+                scenario_id = f"voice_command_{abs(hash(command))}"
+                
+                return SmartScenario(
+                    id=scenario_id,
+                    name=f"Voice Command: {command.title()}",
+                    description=f"Execute frequent voice command: '{command}'",
+                    scenario_type=ScenarioType.PATTERN_BASED,
+                    trigger_conditions=[{
+                        "type": "voice_command",
+                        "phrase": command,
+                        "similarity_threshold": 0.8
+                    }],
+                    actions=actions,
+                    confidence=min(0.9, frequency / 10.0),
+                    frequency=frequency,
+                    energy_impact=0.0,
+                    comfort_score=0.8,
+                    created_at=datetime.now()
+                )
+            
+            return None
+            
+        except Exception as e:
+            print(f"Error creating voice scenario: {e}")
+            return None
