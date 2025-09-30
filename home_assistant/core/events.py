@@ -285,3 +285,30 @@ async def emit_event(
     """
     event = Event(event_type, data, source, target)
     await get_event_bus().emit(event)
+
+
+# Алиасы для обратной совместимости
+EventSystem = EventBus
+
+# Специальные события для устройств
+class DeviceFoundEvent(Event):
+    """Событие обнаружения устройства"""
+    def __init__(self, device_data: Dict[str, Any], source: Optional[str] = None):
+        super().__init__(
+            event_type=EventType.DEVICE_DISCOVERED,
+            data=device_data,
+            source=source
+        )
+
+class DeviceStateChangedEvent(Event):
+    """Событие изменения состояния устройства"""
+    def __init__(self, device_id: str, old_state: Dict[str, Any], new_state: Dict[str, Any], source: Optional[str] = None):
+        super().__init__(
+            event_type=EventType.DEVICE_STATE_CHANGED,
+            data={
+                "device_id": device_id,
+                "old_state": old_state,
+                "new_state": new_state
+            },
+            source=source
+        )
