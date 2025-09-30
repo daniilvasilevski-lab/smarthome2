@@ -17,9 +17,9 @@ import uuid
 from datetime import datetime
 
 from ..core.config import HomeAssistantConfig
-from ..core.simple import EventSystem
+from ..core.events_simple import EventSystem
 from ..storage.database import DatabaseManager
-from ..communication.hub import CommunicationHub
+from ..communications.hub import CommunicationHub
 from ..ai.reasoning import ReasoningEngine
 from ..ai.smart_scenarios import SmartScenariosAI
 from ..ai.home_management import ai_home_manager, OptimizationType, PredictionType
