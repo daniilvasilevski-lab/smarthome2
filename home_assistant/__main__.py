@@ -9,7 +9,7 @@ import asyncio
 import sys
 from pathlib import Path
 
-from .core.lifecycle_main import main
+from .core.lifecycle import main
 
 if __name__ == "__main__":
     try:
