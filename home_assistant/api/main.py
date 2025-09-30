@@ -22,7 +22,7 @@ from ..storage.database import DatabaseManager
 from ..communication.hub import CommunicationHub
 from ..ai.reasoning import ReasoningEngine
 from ..ai.smart_scenarios import SmartScenariosAI
-from ..ai.home_management_fixed import ai_home_manager, OptimizationType, PredictionType
+from ..ai.home_management import ai_home_manager, OptimizationType, PredictionType
 
 # Pydantic модели для API
 class ChatMessage(BaseModel):
